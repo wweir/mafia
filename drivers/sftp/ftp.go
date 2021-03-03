@@ -1,4 +1,4 @@
-package driver
+package sftp
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/pkg/sftp"
+	"github.com/wweir/mafia/drivers"
 	"goftp.io/server/v2"
 )
 
@@ -50,7 +51,7 @@ func (s *Sftp) GetFile(ctx *server.Context, path string, offset int64) (int64, i
 		return 0, nil, err
 	}
 
-	return seekRead(f, offset)
+	return drivers.SeekRead(f, offset)
 }
 func (s *Sftp) PutFile(ctx *server.Context, destPath string, data io.Reader, offset int64) (int64, error) {
 	return 0, os.ErrPermission

@@ -1,4 +1,4 @@
-package driver
+package drivers
 
 import (
 	"io"
@@ -9,7 +9,7 @@ import (
 
 var Drivers = map[string]server.Driver{}
 
-func seekRead(f interface {
+func SeekRead(f interface {
 	io.ReadSeekCloser
 	Stat() (fs.FileInfo, error)
 }, offset int64) (int64, io.ReadCloser, error) {

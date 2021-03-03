@@ -25,12 +25,14 @@ func main() {
 
 	ftpServer, err := server.NewServer(&server.Options{
 		// Driver: server.NewMultiDriver(driver.Drivers),
-		Driver:    d,
-		Name:      "Mafia FTP Server",
-		Auth:      &auth{},
-		Perm:      server.NewSimplePerm("wweir", "wweir"),
-		Port:      3000,
-		RateLimit: 1 << 20,
+		Driver:       d,
+		Name:         "Mafia FTP Server",
+		Auth:         &auth{},
+		Perm:         server.NewSimplePerm("wweir", "wweir"),
+		Port:         3000,
+		RateLimit:    1 << 20,
+		PublicIP:     "139.196.34.166",
+		PassivePorts: "50000-60000",
 	})
 	if err != nil {
 		log.Fatal("Error creating server:", err)
