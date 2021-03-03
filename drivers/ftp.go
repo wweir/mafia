@@ -19,30 +19,30 @@ type FTPAdaptor interface {
 }
 
 type FTPDriver struct {
-	FTPAdaptor
+	Adaptor FTPAdaptor
 }
 
 func (ftp *FTPDriver) DeleteDir(ctx *server.Context, path string) error {
-	return ftp.FTPAdaptor.DeleteDir(path)
+	return ftp.Adaptor.DeleteDir(path)
 }
 func (ftp *FTPDriver) DeleteFile(ctx *server.Context, path string) error {
-	return ftp.FTPAdaptor.DeleteFile(path)
+	return ftp.Adaptor.DeleteFile(path)
 }
 func (ftp *FTPDriver) GetFile(ctx *server.Context, path string, offset int64) (int64, io.ReadCloser, error) {
-	return ftp.FTPAdaptor.GetFile(path, offset)
+	return ftp.Adaptor.GetFile(path, offset)
 }
 func (ftp *FTPDriver) ListDir(ctx *server.Context, path string, callback func(os.FileInfo) error) error {
-	return ftp.FTPAdaptor.ListDir(path, callback)
+	return ftp.Adaptor.ListDir(path, callback)
 }
 func (ftp *FTPDriver) MakeDir(ctx *server.Context, path string) error {
-	return ftp.FTPAdaptor.MakeDir(path)
+	return ftp.Adaptor.MakeDir(path)
 }
 func (ftp *FTPDriver) PutFile(ctx *server.Context, destPath string, data io.Reader, offset int64) (int64, error) {
-	return ftp.FTPAdaptor.PutFile(destPath, data, offset)
+	return ftp.Adaptor.PutFile(destPath, data, offset)
 }
 func (ftp *FTPDriver) Rename(ctx *server.Context, fromPath string, toPath string) error {
-	return ftp.FTPAdaptor.Rename(fromPath, toPath)
+	return ftp.Adaptor.Rename(fromPath, toPath)
 }
 func (ftp *FTPDriver) Stat(ctx *server.Context, path string) (os.FileInfo, error) {
-	return ftp.FTPAdaptor.Stat(path)
+	return ftp.Adaptor.Stat(path)
 }

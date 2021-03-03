@@ -17,27 +17,27 @@ type WebdavAdaptor interface {
 }
 
 type WebdavDriver struct {
-	WebdavAdaptor
+	Adaptor WebdavAdaptor
 }
 
 func (dav *WebdavDriver) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	return dav.WebdavAdaptor.Mkdir(name, perm)
+	return dav.Adaptor.Mkdir(name, perm)
 }
 func (dav *WebdavDriver) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
-	file, err := dav.WebdavAdaptor.OpenFile(name, flag, perm)
+	file, err := dav.Adaptor.OpenFile(name, flag, perm)
 	if err != nil {
 		return nil, err
 	}
-	return &webdavFile{WebdavFileAdaptor: file}, nil
+	return &webdavFile{Adaptor: file}, nil
 }
 func (dav *WebdavDriver) RemoveAll(ctx context.Context, name string) error {
-	return dav.WebdavAdaptor.RemoveAll(name)
+	return dav.Adaptor.RemoveAll(name)
 }
 func (dav *WebdavDriver) Rename(ctx context.Context, oldName, newName string) error {
-	return dav.WebdavAdaptor.Rename(oldName, newName)
+	return dav.Adaptor.Rename(oldName, newName)
 }
 func (dav *WebdavDriver) Stat(ctx context.Context, name string) (os.FileInfo, error) {
-	return dav.WebdavAdaptor.Stat(name)
+	return dav.Adaptor.Stat(name)
 }
 
 type WebdavFileAdaptor interface {
@@ -49,24 +49,24 @@ type WebdavFileAdaptor interface {
 	Close() error
 }
 type webdavFile struct {
-	WebdavFileAdaptor
+	Adaptor WebdavFileAdaptor
 }
 
 func (f *webdavFile) Readdir(count int) ([]fs.FileInfo, error) {
-	return f.WebdavFileAdaptor.Readdir(count)
+	return f.Adaptor.Readdir(count)
 }
 func (f *webdavFile) Stat() (fs.FileInfo, error) {
-	return f.WebdavFileAdaptor.Stat()
+	return f.Adaptor.Stat()
 }
 func (f *webdavFile) Read(p []byte) (n int, err error) {
-	return f.WebdavFileAdaptor.Read(p)
+	return f.Adaptor.Read(p)
 }
 func (f *webdavFile) Write(p []byte) (n int, err error) {
-	return f.WebdavFileAdaptor.Write(p)
+	return f.Adaptor.Write(p)
 }
 func (f *webdavFile) Seek(offset int64, whence int) (int64, error) {
-	return f.WebdavFileAdaptor.Seek(offset, whence)
+	return f.Adaptor.Seek(offset, whence)
 }
 func (f *webdavFile) Close() error {
-	return f.WebdavFileAdaptor.Close()
+	return f.Adaptor.Close()
 }

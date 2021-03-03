@@ -60,7 +60,7 @@ func (s *SSHInfo) OpenFile(ctx context.Context, name string, flag int, perm os.F
 	}, nil
 }
 func (s *SSHInfo) RemoveAll(ctx context.Context, name string) error {
-	return s.sftp.Remove(s.HomePath(name))
+	return s.sftp.RemoveDirectory(s.HomePath(name))
 }
 func (s *SSHInfo) Rename(ctx context.Context, oldName, newName string) error {
 	return s.sftp.Rename(s.HomePath(oldName), s.HomePath(newName))
