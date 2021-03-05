@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/drivers/sftp"
+	"github.com/wweir/mafia/drivers/zip"
 	"goftp.io/server/v2"
 )
 
@@ -43,7 +43,10 @@ func (l *logger) Printf(sessionID string, format string, v ...interface{}) {
 // }
 
 func init() {
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	zerolog.ErrorStackMarshaler = func(err error) interface{} {
+		log.Printf("%+v", err)
+		return pkgerrors.MarshalStack(err)
+	}
 	log.Logger = zerolog.New(zerolog.ConsoleWriter{
 		Out: os.Stderr,
 		FormatCaller: func(i interface{}) string {
@@ -56,20 +59,21 @@ func init() {
 			}
 			return caller
 		},
-	}).With().Timestamp().Stack().Caller().Logger()
+	}).With().Timestamp().Caller().Logger()
 }
 
 func main() {
 	// ftp, err := tar.NewFTP("drivers/tar/a.tar")
-	dav, err := sftp.NewWebdav(&sftp.SSHConfig{
-		Addr: "127.0.0.1",
-	})
+	ftp, err := zip.NewFTP("drivers/zip/win.zip")
+	// dav, err := sftp.NewWebdav(&sftp.SSHConfig{
+	// 	Addr: "127.0.0.1",
+	// })
 	if err != nil {
-		log.Fatal().Err(err).Send()
+		log.Fatal().Stack().Err(err).Send()
 	}
 
 	ftpServer, err := server.NewServer(&server.Options{
-		Driver:    drivers.NewFTPDriver(nil, dav),
+		Driver:    drivers.NewFTPDriver(ftp, nil),
 		Name:      "Mafia FTP Server",
 		Auth:      &auth{},
 		Perm:      server.NewSimplePerm("wweir", "wweir"),

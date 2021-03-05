@@ -21,7 +21,3 @@
 *.swo
 .vscode
 .idea
-
-drivers/tar/*.tar
-drivers/tar/*.tar.gz
-drivers/tar/*.tgz

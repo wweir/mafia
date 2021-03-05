@@ -9,4 +9,5 @@ require (
 	goftp.io/server/v2 v2.0.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	golang.org/x/text v0.3.2
 )
