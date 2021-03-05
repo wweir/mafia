@@ -9,54 +9,96 @@ import (
 )
 
 type WebdavAdaptor interface {
-	Mkdir(name string, perm os.FileMode) error
-	OpenFile(name string, flag int, perm os.FileMode) (WebdavFileAdaptor, error)
-	RemoveAll(name string) error
-	Rename(oldName, newName string) error
-	Stat(name string) (os.FileInfo, error)
+	FSAdaptor
+
+	OpenFile(path string, flag int, perm os.FileMode) (FileAdaptor, error)
 }
 
 type WebdavDriver struct {
 	Adaptor WebdavAdaptor
 }
 
-func (dav *WebdavDriver) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	return dav.Adaptor.Mkdir(name, perm)
+func (dav *WebdavDriver) Mkdir(ctx context.Context, path string, perm os.FileMode) (err error) {
+	defer func() {
+		DeferLog.Err(err).
+			Str("path", path).
+			Msg("Mkdir")
+	}()
+	return dav.Adaptor.Mkdir(path, perm)
 }
-func (dav *WebdavDriver) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
-	file, err := dav.Adaptor.OpenFile(name, flag, perm)
+func (dav *WebdavDriver) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (_ webdav.File, err error) {
+	defer func() {
+		DeferLog.Err(err).
+			Str("path", path).
+			Msg("OpenFile")
+	}()
+
+	file, err := dav.Adaptor.OpenFile(path, flag, perm)
 	if err != nil {
 		return nil, err
 	}
-	return &webdavFile{Adaptor: file}, nil
+	return &webdavFile{
+		Adaptor: file,
+		path:    path,
+		stat:    dav.Adaptor.Stat,
+		readdir: dav.Adaptor.ReadDir,
+	}, nil
 }
-func (dav *WebdavDriver) RemoveAll(ctx context.Context, name string) error {
-	return dav.Adaptor.RemoveAll(name)
+func (dav *WebdavDriver) RemoveAll(ctx context.Context, path string) (err error) {
+	defer func() {
+		DeferLog.Err(err).
+			Str("path", path).
+			Msg("RemoveAll")
+	}()
+
+	stat, err := dav.Adaptor.Stat(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if stat.IsDir() {
+		return dav.Adaptor.DeleteDir(path)
+	}
+	return dav.Adaptor.DeleteFile(path)
 }
-func (dav *WebdavDriver) Rename(ctx context.Context, oldName, newName string) error {
-	return dav.Adaptor.Rename(oldName, newName)
+func (dav *WebdavDriver) Rename(ctx context.Context, oldpath, newpath string) (err error) {
+	defer func() {
+		DeferLog.Err(err).
+			Str("from", oldpath).
+			Str("to", newpath).
+			Msg("DeleteFile")
+	}()
+	return dav.Adaptor.Rename(oldpath, newpath)
 }
-func (dav *WebdavDriver) Stat(ctx context.Context, name string) (os.FileInfo, error) {
-	return dav.Adaptor.Stat(name)
+func (dav *WebdavDriver) Stat(ctx context.Context, path string) (fi os.FileInfo, err error) {
+	defer func() {
+		DeferLog.Err(err).
+			Str("path", path).
+			Msg("Stat")
+	}()
+
+	return dav.Adaptor.Stat(path)
 }
 
-type WebdavFileAdaptor interface {
-	Readdir(count int) ([]fs.FileInfo, error)
-	Stat() (fs.FileInfo, error)
-	Read(p []byte) (n int, err error)
-	Write(p []byte) (n int, err error)
-	Seek(offset int64, whence int) (int64, error)
-	Close() error
-}
 type webdavFile struct {
-	Adaptor WebdavFileAdaptor
+	Adaptor FileAdaptor
+
+	path    string
+	readdir func(string) ([]fs.FileInfo, error)
+	stat    func(string) (os.FileInfo, error)
 }
 
 func (f *webdavFile) Readdir(count int) ([]fs.FileInfo, error) {
-	return f.Adaptor.Readdir(count)
+	fss, err := f.readdir(f.path)
+	if err != nil {
+		return nil, err
+	}
+	if len(fss) > count {
+		return fss[:count], nil
+	}
+	return fss, nil
 }
 func (f *webdavFile) Stat() (fs.FileInfo, error) {
-	return f.Adaptor.Stat()
+	return f.stat(f.path)
 }
 func (f *webdavFile) Read(p []byte) (n int, err error) {
 	return f.Adaptor.Read(p)
@@ -67,6 +109,6 @@ func (f *webdavFile) Write(p []byte) (n int, err error) {
 func (f *webdavFile) Seek(offset int64, whence int) (int64, error) {
 	return f.Adaptor.Seek(offset, whence)
 }
-func (f *webdavFile) Close() error {
+func (f *webdavFile) Close() (err error) {
 	return f.Adaptor.Close()
 }

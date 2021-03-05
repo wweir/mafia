@@ -2,50 +2,45 @@ package drivers
 
 import (
 	"io"
-	"io/fs"
 	"os"
 
+	"github.com/rs/zerolog"
 	"goftp.io/server/v2"
 )
 
+var DeferLog *zerolog.Logger
 var Drivers = map[string]server.Driver{}
 
-func SeekRead(f interface {
-	io.ReadSeekCloser
-	Stat() (fs.FileInfo, error)
-}, offset int64) (int64, io.ReadCloser, error) {
-
-	info, err := f.Stat()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	_, err = f.Seek(offset, io.SeekStart)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return info.Size() - offset, f, nil
-}
-
-type base interface {
-	DeleteDir(path string) error // RemoveAll(name string) error
+type FSAdaptor interface {
+	DeleteDir(path string) error
 	DeleteFile(path string) error
-	GetFile(path string, offset int64) (int64, io.ReadCloser, error)
-	ListDir(path string, callback func(os.FileInfo) error) error
-	PutFile(destPath string, data io.Reader, offset int64) (int64, error)
 	Rename(fromPath string, toPath string) error
+	Mkdir(dirpath string, perm os.FileMode) error
 	Stat(path string) (os.FileInfo, error)
-
-	Mkdir(name string, perm os.FileMode) error // MakeDir(path string) error
-	OpenFile(name string, flag int, perm os.FileMode) (WebdavFileAdaptor, error)
+	ReadDir(dirpath string) ([]os.FileInfo, error)
 }
 
-type file interface {
-	Readdir(count int) ([]fs.FileInfo, error)
-	Stat() (fs.FileInfo, error)
-	Read(p []byte) (n int, err error)
-	Write(p []byte) (n int, err error)
-	Seek(offset int64, whence int) (int64, error)
-	Close() error
+type FileAdaptor interface {
+	io.Reader
+	io.Writer
+	io.Seeker
+	io.Closer
+}
+
+type MockFSFull struct{}
+
+func (f *MockFSFull) DeleteDir(path string) error                 { return os.ErrPermission }
+func (f *MockFSFull) DeleteFile(path string) error                { return os.ErrPermission }
+func (f *MockFSFull) Rename(fromPath string, toPath string) error { return os.ErrPermission }
+func (f *MockFSFull) Mkdir(name string, perm os.FileMode) error   { return os.ErrPermission }
+func (f *MockFSFull) Stat(name string) (os.FileInfo, error)       { return nil, os.ErrPermission }
+func (f *MockFSFull) ReadDir(name string) ([]os.FileInfo, error)  { return nil, os.ErrPermission }
+func (f *MockFSFull) OpenFile(path string, flag int, perm os.FileMode) (FileAdaptor, error) {
+	return nil, os.ErrPermission
+}
+func (f *MockFSFull) GetFile(path string, offset int64) (int64, io.ReadCloser, error) {
+	return 0, nil, os.ErrPermission
+}
+func (f *MockFSFull) PutFile(destPath string, data io.Reader, offset int64) (int64, error) {
+	return 0, os.ErrPermission
 }

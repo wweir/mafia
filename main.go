@@ -1,45 +1,91 @@
 package main
 
 import (
-	"log"
+	"os"
+	"strings"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
+	"github.com/wweir/mafia/drivers"
+	"github.com/wweir/mafia/drivers/tar"
 	"goftp.io/server/v2"
-	"goftp.io/server/v2/driver/file"
 )
 
 type auth struct {
 }
 
 func (*auth) CheckPasswd(ctx *server.Context, user string, passwd string) (bool, error) {
-	log.Println(user, passwd)
+	log.Info().
+		Str("user", user).
+		Str("password", passwd).
+		Msg("auth info")
 	return true, nil
 }
 
-func main() {
-	log.SetFlags(log.Lshortfile | log.Ltime)
+type logger struct {
+	server.DiscardLogger
+	zerolog.Logger
+}
 
-	d, err := file.NewDriver("./")
+func (l *logger) Print(sessionID string, message interface{}) {
+	l.Info().Str("sess", sessionID).Interface("msg", message).Send()
+}
+func (l *logger) Printf(sessionID string, format string, v ...interface{}) {
+	l.Info().Str("sess", sessionID).Msgf(format, v...)
+}
+
+// func (l *logger) PrintCommand(sessionID string, command string, params string) {
+// 	l.Info().Str("sess", sessionID).Str("cmd", command).Str("params", params).Send()
+// }
+// func (l *logger) PrintResponse(sessionID string, code int, message string) {
+// 	l.Info().Str("sess", sessionID).Int("code", code).Msg(message)
+// }
+
+func init() {
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{
+		Out: os.Stderr,
+		FormatCaller: func(i interface{}) string {
+			caller := i.(string)
+			if idx := strings.Index(caller, "/pkg/mod/"); idx > 0 {
+				return caller[idx+9:]
+			}
+			if idx := strings.LastIndexByte(caller, '/'); idx > 0 {
+				return caller[idx+1:]
+			}
+			return caller
+		},
+	}).With().Timestamp().Stack().Caller().Logger()
+
+	logger := log.Logger.With().CallerWithSkipFrameCount(3).Logger()
+	drivers.DeferLog = &logger
+}
+
+func main() {
+	ftp, err := tar.NewFTP("drivers/tar/a.tar")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("tar")
 	}
 
 	ftpServer, err := server.NewServer(&server.Options{
-		// Driver: server.NewMultiDriver(driver.Drivers),
-		Driver:       d,
-		Name:         "Mafia FTP Server",
-		Auth:         &auth{},
-		Perm:         server.NewSimplePerm("wweir", "wweir"),
-		Port:         3000,
-		RateLimit:    1 << 20,
-		PublicIP:     "139.196.34.166",
-		PassivePorts: "50000-60000",
+		Driver:    drivers.NewFTPDriver(ftp, nil),
+		Name:      "Mafia FTP Server",
+		Auth:      &auth{},
+		Perm:      server.NewSimplePerm("wweir", "wweir"),
+		Port:      3000,
+		RateLimit: 1 << 20,
+		PublicIP:  "139.196.34.166",
+		Logger: &logger{
+			Logger: *drivers.DeferLog,
+		},
 	})
 	if err != nil {
-		log.Fatal("Error creating server:", err)
+		log.Fatal().Err(err).Msg("creating server")
 	}
 
 	err = ftpServer.ListenAndServe()
 	if err != nil {
-		log.Fatal("Error starting server:", err)
+		log.Fatal().Err(err).Msg("starting server")
 	}
 }
