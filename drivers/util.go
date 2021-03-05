@@ -4,11 +4,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/rs/zerolog"
 	"goftp.io/server/v2"
 )
 
-var DeferLog *zerolog.Logger
 var Drivers = map[string]server.Driver{}
 
 type FSAdaptor interface {

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/rs/zerolog/log"
 	"golang.org/x/net/webdav"
 )
 
@@ -20,7 +21,7 @@ type WebdavDriver struct {
 
 func (dav *WebdavDriver) Mkdir(ctx context.Context, path string, perm os.FileMode) (err error) {
 	defer func() {
-		DeferLog.Err(err).
+		log.Err(err).
 			Str("path", path).
 			Msg("Mkdir")
 	}()
@@ -28,7 +29,7 @@ func (dav *WebdavDriver) Mkdir(ctx context.Context, path string, perm os.FileMod
 }
 func (dav *WebdavDriver) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (_ webdav.File, err error) {
 	defer func() {
-		DeferLog.Err(err).
+		log.Err(err).
 			Str("path", path).
 			Msg("OpenFile")
 	}()
@@ -46,7 +47,7 @@ func (dav *WebdavDriver) OpenFile(ctx context.Context, path string, flag int, pe
 }
 func (dav *WebdavDriver) RemoveAll(ctx context.Context, path string) (err error) {
 	defer func() {
-		DeferLog.Err(err).
+		log.Err(err).
 			Str("path", path).
 			Msg("RemoveAll")
 	}()
@@ -62,7 +63,7 @@ func (dav *WebdavDriver) RemoveAll(ctx context.Context, path string) (err error)
 }
 func (dav *WebdavDriver) Rename(ctx context.Context, oldpath, newpath string) (err error) {
 	defer func() {
-		DeferLog.Err(err).
+		log.Err(err).
 			Str("from", oldpath).
 			Str("to", newpath).
 			Msg("DeleteFile")
@@ -71,7 +72,7 @@ func (dav *WebdavDriver) Rename(ctx context.Context, oldpath, newpath string) (e
 }
 func (dav *WebdavDriver) Stat(ctx context.Context, path string) (fi os.FileInfo, err error) {
 	defer func() {
-		DeferLog.Err(err).
+		log.Err(err).
 			Str("path", path).
 			Msg("Stat")
 	}()

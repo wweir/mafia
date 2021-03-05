@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/drivers/tar"
+	"github.com/wweir/mafia/drivers/sftp"
 	"goftp.io/server/v2"
 )
 
@@ -57,19 +57,19 @@ func init() {
 			return caller
 		},
 	}).With().Timestamp().Stack().Caller().Logger()
-
-	logger := log.Logger.With().CallerWithSkipFrameCount(3).Logger()
-	drivers.DeferLog = &logger
 }
 
 func main() {
-	ftp, err := tar.NewFTP("drivers/tar/a.tar")
+	// ftp, err := tar.NewFTP("drivers/tar/a.tar")
+	dav, err := sftp.NewWebdav(&sftp.SSHConfig{
+		Addr: "127.0.0.1",
+	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("tar")
+		log.Fatal().Err(err).Send()
 	}
 
 	ftpServer, err := server.NewServer(&server.Options{
-		Driver:    drivers.NewFTPDriver(ftp, nil),
+		Driver:    drivers.NewFTPDriver(nil, dav),
 		Name:      "Mafia FTP Server",
 		Auth:      &auth{},
 		Perm:      server.NewSimplePerm("wweir", "wweir"),
@@ -77,7 +77,7 @@ func main() {
 		RateLimit: 1 << 20,
 		PublicIP:  "139.196.34.166",
 		Logger: &logger{
-			Logger: *drivers.DeferLog,
+			Logger: log.Logger.With().CallerWithSkipFrameCount(3).Logger(),
 		},
 	})
 	if err != nil {

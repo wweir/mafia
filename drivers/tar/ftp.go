@@ -3,6 +3,7 @@ package tar
 import (
 	"io"
 
+	"github.com/pkg/errors"
 	"github.com/wweir/mafia/drivers"
 	"github.com/wweir/mafia/pkg/fsutil"
 )
@@ -34,7 +35,7 @@ func (ftp *FTP) GetFile(path string, offset int64) (int64, io.ReadCloser, error)
 		hdr, err := tr.Next()
 		if err != nil {
 			close()
-			return 0, nil, err
+			return 0, nil, errors.WithStack(err)
 		}
 
 		if fsutil.SumPathRelation(hdr.Name, path) == fsutil.PathSelf {

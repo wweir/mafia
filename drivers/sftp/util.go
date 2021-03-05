@@ -5,127 +5,81 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 
-	"github.com/pkg/sftp"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 )
 
-// GetDefaultSSHKeyPath default private key path
-func GetDefaultSSHKeyPath() string {
+type SSHConfig struct {
+	Addr     string
+	User     string
+	Password string
+	Key      string
+}
+
+func (conf *SSHConfig) Validate() (*ssh.ClientConfig, error) {
+	if _, _, err := net.SplitHostPort(conf.Addr); err != nil {
+		conf.Addr = net.JoinHostPort(conf.Addr, "22")
+		if _, _, err = net.SplitHostPort(conf.Addr); err != nil {
+			return nil, err
+		}
+	}
+
+	if conf.User == "" {
+		if conf.User = os.Getenv("USER"); conf.User == "" {
+			return nil, errors.New("ssh user is not set")
+		}
+	}
+
+	var auth ssh.AuthMethod
+	if conf.Password != "" {
+		auth = ssh.Password(conf.Password)
+
+	} else {
+		if conf.Key == "" {
+			if conf.Key = GetUniqSSHKeyPath(); conf.Key == "" {
+				return nil, errors.New("ssh key is not set")
+			}
+		}
+
+		keyData, err := ioutil.ReadFile(conf.Key)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		privateKey, err := ssh.ParsePrivateKey(keyData)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		auth = ssh.PublicKeys(privateKey)
+	}
+
+	return &ssh.ClientConfig{
+		User:            conf.User,
+		Auth:            []ssh.AuthMethod{auth},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}, nil
+}
+
+// GetUniqSSHKeyPath the uniq private key path
+func GetUniqSSHKeyPath() string {
 	home, _ := os.UserHomeDir()
-	fs, err := ioutil.ReadDir(filepath.Join(home, "/.ssh"))
+	fis, err := ioutil.ReadDir(filepath.Join(home, "/.ssh"))
 	if err != nil {
 		return ""
 	}
 
 	keys := make([]string, 0, 1)
-	for _, f := range fs {
-		if strings.HasPrefix(f.Name(), "id_") && !strings.HasSuffix(f.Name(), ".pub") {
-			keys = append(keys, home+"/.ssh/"+f.Name())
+	for f := range fis {
+		filename := filepath.Base(fis[f].Name())
+		if len(filename) >= 4 &&
+			filename[:3] == "id_" &&
+			filename[len(filename)-4:] != ".pub" {
+
+			keys = append(keys, home+"/.ssh/"+filename)
 		}
 	}
 	if len(keys) == 1 {
 		return keys[0]
 	}
 	return ""
-}
-
-// SSHInfo is a wrap for sftp client for webdav
-type SSHInfo struct {
-	IP       string
-	User     string
-	Key      string
-	Password string
-	Home     string
-
-	ssh      *ssh.Client
-	sftp     *sftp.Client
-	dirCache *sync.Map
-}
-
-func NewSftpDriver(info, defaultUser, defaultKey, defaultPasswd string) (sshInfo *SSHInfo, err error) {
-	sshInfo = &SSHInfo{
-		IP:       info,
-		User:     defaultUser,
-		Key:      defaultKey,
-		Password: defaultPasswd,
-		dirCache: &sync.Map{},
-	}
-	if sshInfo.User == "" {
-		sshInfo.User = os.Getenv("USER")
-	}
-	if sshInfo.Key == "" {
-		sshInfo.Key = GetDefaultSSHKeyPath()
-	}
-
-	if idxIP := strings.LastIndex(info, "@"); idxIP >= 0 {
-		sshInfo.IP = info[idxIP+1:]
-
-		if idxUser := strings.LastIndex(info[:idxIP], ":"); idxUser >= 0 {
-			sshInfo.User = info[:idxUser]
-			sshInfo.Password = info[idxUser+1 : idxIP]
-		} else {
-			sshInfo.User = info[:idxIP]
-		}
-	}
-
-	if sshInfo.ssh, sshInfo.sftp, err = sshInfo.Dial(); err != nil {
-		return nil, err
-	}
-
-	sess, err := sshInfo.ssh.NewSession()
-	if err != nil {
-		return nil, err
-	}
-	out, err := sess.CombinedOutput("echo $PWD")
-	if err != nil {
-		return nil, err
-	}
-	sshInfo.Home = strings.TrimSuffix(string(out), "\n")
-
-	return sshInfo, nil
-}
-
-// Dial build a wrapped ssh client with given config
-func (s *SSHInfo) Dial() (*ssh.Client, *sftp.Client, error) {
-	var auth ssh.AuthMethod
-	if s.Password != "" {
-		auth = ssh.Password(s.Password)
-
-	} else {
-		keyData, err := ioutil.ReadFile(s.Key)
-		if err != nil {
-			return nil, nil, err
-		}
-		privateKey, err := ssh.ParsePrivateKey(keyData)
-		if err != nil {
-			return nil, nil, err
-		}
-		auth = ssh.PublicKeys(privateKey)
-	}
-
-	config := &ssh.ClientConfig{
-		User:            s.User,
-		Auth:            []ssh.AuthMethod{auth},
-		HostKeyCallback: func(string, net.Addr, ssh.PublicKey) error { return nil },
-	}
-
-	ip := s.IP
-	if !strings.Contains(s.IP, ":") {
-		ip += ":22"
-	}
-
-	sshClient, err := ssh.Dial("tcp", ip, config)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	sftpClient, err := sftp.NewClient(sshClient)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return sshClient, sftpClient, nil
 }

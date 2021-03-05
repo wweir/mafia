@@ -3,12 +3,12 @@ package tar
 import (
 	"archive/tar"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/wweir/mafia/drivers"
 	"github.com/wweir/mafia/pkg/fsutil"
 )
@@ -49,7 +49,7 @@ func newCommon(path string) (*common, error) {
 func (c *common) openReader() (tr *tar.Reader, close func(), err error) {
 	f, err := os.Open(c.path)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.WithStack(err)
 	}
 
 	var rc io.ReadCloser
@@ -59,10 +59,10 @@ func (c *common) openReader() (tr *tar.Reader, close func(), err error) {
 	case ".gz", ".tgz":
 		if rc, err = gzip.NewReader(f); err != nil {
 			f.Close()
-			return nil, nil, err
+			return nil, nil, errors.WithStack(err)
 		}
 	default:
-		return nil, nil, fmt.Errorf("unsupported file type: %s", c.path)
+		return nil, nil, errors.Errorf("unsupported file type: %s", c.path)
 	}
 
 	return tar.NewReader(rc), func() {
@@ -73,7 +73,7 @@ func (c *common) openReader() (tr *tar.Reader, close func(), err error) {
 func (c *common) openWriter() (tr *tar.Writer, close func(), err error) {
 	f, err := os.Open(c.path)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.WithStack(err)
 	}
 
 	var wc io.WriteCloser
@@ -83,7 +83,7 @@ func (c *common) openWriter() (tr *tar.Writer, close func(), err error) {
 	case ".gz", ".tgz":
 		wc = gzip.NewWriter(f)
 	default:
-		return nil, nil, fmt.Errorf("unsupported file type: %s", c.path)
+		return nil, nil, errors.Errorf("unsupported file type: %s", c.path)
 	}
 
 	tw := tar.NewWriter(wc)

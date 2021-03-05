@@ -3,6 +3,7 @@ module github.com/wweir/mafia
 go 1.16
 
 require (
+	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.12.0
 	github.com/rs/zerolog v1.20.0
 	goftp.io/server/v2 v2.0.0

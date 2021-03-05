@@ -12,6 +12,17 @@ type Webdav struct {
 	*common
 }
 
+func NewWebdav(conf *SSHConfig) (*Webdav, error) {
+	c, err := newCommon(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Webdav{
+		common: c,
+	}, nil
+}
+
 func (dav *Webdav) OpenFile(name string, flag int, perm os.FileMode) (drivers.FileAdaptor, error) {
 	return dav.Client.OpenFile(name, flag)
 }
