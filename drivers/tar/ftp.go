@@ -5,7 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/pkg/fsutil"
+	"github.com/wweir/mafia/pkg/fsmock"
+	"github.com/wweir/mafia/pkg/fspath"
 )
 
 var _ drivers.FTPAdaptor = new(FTP)
@@ -38,8 +39,8 @@ func (ftp *FTP) GetFile(path string, offset int64) (int64, io.ReadCloser, error)
 			return 0, nil, errors.WithStack(err)
 		}
 
-		if fsutil.SumPathRelation(hdr.Name, path) == fsutil.PathSelf {
-			return hdr.Size, &fsutil.MockReaderCloser{
+		if fspath.SumPathRelation(hdr.Name, path) == fspath.PathSelf {
+			return hdr.Size, &fsmock.MockReaderCloser{
 				ReadFn:  tr.Read,
 				CloseFn: close,
 			}, nil

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/wweir/mafia/pkg/fspath"
 	"goftp.io/server/v2"
 )
 
@@ -35,16 +35,18 @@ func NewFTPDriver(ftp FTPAdaptor, dav WebdavAdaptor) *FTPDriver {
 }
 
 func (ftp *FTPDriver) DeleteDir(ctx *server.Context, path string) (err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("DeleteFile")
 	}()
 	return ftp.fs.DeleteDir(path)
 }
 func (ftp *FTPDriver) DeleteFile(ctx *server.Context, path string) (err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("DeleteFile")
 	}()
@@ -52,9 +54,10 @@ func (ftp *FTPDriver) DeleteFile(ctx *server.Context, path string) (err error) {
 }
 
 func (ftp *FTPDriver) ListDir(ctx *server.Context, path string, callback func(os.FileInfo) error) (err error) {
+	path = fspath.Relative(path)
 	files := []string{}
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Strs("files", files).
 			Msg("ListDir")
@@ -74,8 +77,9 @@ func (ftp *FTPDriver) ListDir(ctx *server.Context, path string, callback func(os
 	return nil
 }
 func (ftp *FTPDriver) MakeDir(ctx *server.Context, path string) (err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("DeleteFile")
 	}()
@@ -83,8 +87,10 @@ func (ftp *FTPDriver) MakeDir(ctx *server.Context, path string) (err error) {
 }
 
 func (ftp *FTPDriver) Rename(ctx *server.Context, fromPath string, toPath string) (err error) {
+	fromPath = fspath.Relative(fromPath)
+	toPath = fspath.Relative(toPath)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("from", fromPath).
 			Str("to", toPath).
 			Msg("DeleteFile")
@@ -92,8 +98,9 @@ func (ftp *FTPDriver) Rename(ctx *server.Context, fromPath string, toPath string
 	return ftp.fs.Rename(fromPath, toPath)
 }
 func (ftp *FTPDriver) Stat(ctx *server.Context, path string) (fi os.FileInfo, err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Interface("stat", fi).
 			Msg("Stat")
@@ -102,9 +109,10 @@ func (ftp *FTPDriver) Stat(ctx *server.Context, path string) (fi os.FileInfo, er
 }
 
 func (ftp *FTPDriver) GetFile(ctx *server.Context, path string, offset int64) (size int64, _ io.ReadCloser, err error) {
+	path = fspath.Relative(path)
 	start := time.Now()
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Int64("offset", offset).
 			Int64("size", size).
@@ -134,9 +142,10 @@ func (ftp *FTPDriver) GetFile(ctx *server.Context, path string, offset int64) (s
 }
 
 func (ftp *FTPDriver) PutFile(ctx *server.Context, path string, data io.Reader, offset int64) (size int64, err error) {
+	path = fspath.Relative(path)
 	start := time.Now()
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Int64("offset", offset).
 			Int64("size", size).

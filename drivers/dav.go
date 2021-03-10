@@ -2,10 +2,9 @@ package drivers
 
 import (
 	"context"
-	"io/fs"
 	"os"
 
-	"github.com/rs/zerolog/log"
+	"github.com/wweir/mafia/pkg/fspath"
 	"golang.org/x/net/webdav"
 )
 
@@ -20,16 +19,18 @@ type WebdavDriver struct {
 }
 
 func (dav *WebdavDriver) Mkdir(ctx context.Context, path string, perm os.FileMode) (err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("Mkdir")
 	}()
 	return dav.Adaptor.Mkdir(path, perm)
 }
 func (dav *WebdavDriver) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (_ webdav.File, err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("OpenFile")
 	}()
@@ -46,8 +47,9 @@ func (dav *WebdavDriver) OpenFile(ctx context.Context, path string, flag int, pe
 	}, nil
 }
 func (dav *WebdavDriver) RemoveAll(ctx context.Context, path string) (err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
 			Msg("RemoveAll")
 	}()
@@ -62,8 +64,10 @@ func (dav *WebdavDriver) RemoveAll(ctx context.Context, path string) (err error)
 	return dav.Adaptor.DeleteFile(path)
 }
 func (dav *WebdavDriver) Rename(ctx context.Context, oldpath, newpath string) (err error) {
+	oldpath = fspath.Relative(oldpath)
+	newpath = fspath.Relative(newpath)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("from", oldpath).
 			Str("to", newpath).
 			Msg("DeleteFile")
@@ -71,45 +75,13 @@ func (dav *WebdavDriver) Rename(ctx context.Context, oldpath, newpath string) (e
 	return dav.Adaptor.Rename(oldpath, newpath)
 }
 func (dav *WebdavDriver) Stat(ctx context.Context, path string) (fi os.FileInfo, err error) {
+	path = fspath.Relative(path)
 	defer func() {
-		log.Err(err).
+		Defer.Err(err).
 			Str("path", path).
+			Interface("fi", fi).
 			Msg("Stat")
 	}()
 
 	return dav.Adaptor.Stat(path)
-}
-
-type webdavFile struct {
-	Adaptor FileAdaptor
-
-	path    string
-	readdir func(string) ([]fs.FileInfo, error)
-	stat    func(string) (os.FileInfo, error)
-}
-
-func (f *webdavFile) Readdir(count int) ([]fs.FileInfo, error) {
-	fss, err := f.readdir(f.path)
-	if err != nil {
-		return nil, err
-	}
-	if len(fss) > count {
-		return fss[:count], nil
-	}
-	return fss, nil
-}
-func (f *webdavFile) Stat() (fs.FileInfo, error) {
-	return f.stat(f.path)
-}
-func (f *webdavFile) Read(p []byte) (n int, err error) {
-	return f.Adaptor.Read(p)
-}
-func (f *webdavFile) Write(p []byte) (n int, err error) {
-	return f.Adaptor.Write(p)
-}
-func (f *webdavFile) Seek(offset int64, whence int) (int64, error) {
-	return f.Adaptor.Seek(offset, whence)
-}
-func (f *webdavFile) Close() (err error) {
-	return f.Adaptor.Close()
 }

@@ -1,15 +1,18 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/drivers/zip"
+	"github.com/wweir/mafia/drivers/s3"
 	"goftp.io/server/v2"
+	"golang.org/x/net/webdav"
 )
 
 type auth struct {
@@ -60,20 +63,33 @@ func init() {
 			return caller
 		},
 	}).With().Timestamp().Caller().Logger()
+	drivers.Defer = log.Logger.With().CallerWithSkipFrameCount(3).Logger()
 }
 
 func main() {
-	// ftp, err := tar.NewFTP("drivers/tar/a.tar")
-	ftp, err := zip.NewFTP("drivers/zip/win.zip")
-	// dav, err := sftp.NewWebdav(&sftp.SSHConfig{
+	var ftp drivers.FTPAdaptor
+	var dav drivers.WebdavAdaptor
+	var err error
+	// ftp, err = tar.NewFTP("drivers/tar/a.tar")
+	// ftp, err = zip.NewFTP("drivers/zip/win.zip")
+	// ftp, err = zip.NewFTP("drivers/zip/mac.zip")
+	// dav, err = sftp.NewWebdav(&sftp.SSHConfig{
 	// 	Addr: "127.0.0.1",
 	// })
+	ftp, err = s3.NewFTP(time.Second)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Send()
 	}
 
+	serverFTP(drivers.NewFTPDriver(ftp, dav))
+	serveWebdav(&drivers.WebdavDriver{
+		Adaptor: dav,
+	})
+}
+
+func serverFTP(driver *drivers.FTPDriver) {
 	ftpServer, err := server.NewServer(&server.Options{
-		Driver:    drivers.NewFTPDriver(ftp, nil),
+		Driver:    driver,
 		Name:      "Mafia FTP Server",
 		Auth:      &auth{},
 		Perm:      server.NewSimplePerm("wweir", "wweir"),
@@ -88,8 +104,16 @@ func main() {
 		log.Fatal().Err(err).Msg("creating server")
 	}
 
-	err = ftpServer.ListenAndServe()
-	if err != nil {
-		log.Fatal().Err(err).Msg("starting server")
+	log.Err(ftpServer.ListenAndServe()).Msg("starting server")
+}
+func serveWebdav(driver *drivers.WebdavDriver) {
+	davHandler := &webdav.Handler{
+		FileSystem: driver,
+		LockSystem: webdav.NewMemLS(),
+		Logger: func(r *http.Request, err error) {
+			// log.Info().Err(err).Msg(r.URL.String())
+		},
 	}
+
+	log.Err(http.ListenAndServe(":3000", davHandler)).Msg("starting server")
 }

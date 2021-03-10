@@ -7,7 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/pkg/fsutil"
+	"github.com/wweir/mafia/pkg/fsmock"
+	"github.com/wweir/mafia/pkg/fspath"
 )
 
 var _ drivers.FTPAdaptor = new(FTP)
@@ -36,19 +37,22 @@ func (ftp *FTP) GetFile(path string, offset int64) (int64, io.ReadCloser, error)
 	for _, zf := range zrc.File {
 		hdr := zf.FileHeader
 		if hdr.Flags == 0 {
-			if str, err := scDecoder.String(hdr.Name); err == nil {
-				hdr.Name = str
+			if hdr.Name, err = scDecoder.String(hdr.Name); err != nil {
+				continue
+			}
+			if hdr.Comment, err = scDecoder.String(hdr.Comment); err != nil {
+				continue
 			}
 		}
 
-		if fsutil.SumPathRelation(path, hdr.Name) == fsutil.PathSelf {
+		if fspath.SumPathRelation(path, hdr.Name) == fspath.PathSelf {
 			rc, err := zf.Open()
 			if err != nil {
 				zrc.Close()
 				return 0, nil, errors.WithStack(err)
 			}
 
-			return hdr.FileInfo().Size(), &fsutil.MockReaderCloser{
+			return hdr.FileInfo().Size(), &fsmock.MockReaderCloser{
 				ReadFn: rc.Read,
 				CloseFn: func() {
 					rc.Close()

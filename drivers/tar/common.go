@@ -10,7 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wweir/mafia/drivers"
-	"github.com/wweir/mafia/pkg/fsutil"
+	"github.com/wweir/mafia/pkg/fsmock"
+	"github.com/wweir/mafia/pkg/fspath"
 )
 
 var _ drivers.FSAdaptor = new(common)
@@ -98,11 +99,11 @@ func (c *common) Stat(name string) (os.FileInfo, error) {
 		return fi, nil
 	}
 
-	if name == "/" {
-		return &fsutil.MockFileInfo{
-			Path:  name,
-			Isdir: true,
-		}, nil
+	switch name {
+	case "":
+		return fsmock.MockFileInfo(".", true, 0, nil), nil
+	case ".", "./", "/":
+		return fsmock.MockFileInfo(name, true, 0, nil), nil
 	}
 
 	if name[:len(name)-1] != "/" {
@@ -111,10 +112,7 @@ func (c *common) Stat(name string) (os.FileInfo, error) {
 
 	for path := range c.fis {
 		if strings.HasPrefix(path, name) {
-			return &fsutil.MockFileInfo{
-				Path:  name,
-				Isdir: true,
-			}, nil
+			return fsmock.MockFileInfo(name, true, 0, nil), nil
 		}
 	}
 	return nil, os.ErrNotExist
@@ -125,14 +123,11 @@ func (c *common) Mkdir(name string, perm os.FileMode) error { return nil }
 func (c *common) ReadDir(dir string) ([]os.FileInfo, error) {
 	fis := make([]os.FileInfo, 0, len(c.fis))
 	for file, fi := range c.fis {
-		switch fsutil.SumPathRelation(file, dir) {
-		case fsutil.PathParrent:
+		switch fspath.SumPathRelation(file, dir) {
+		case fspath.PathParrent:
 			fis = append(fis, fi)
-		case fsutil.PathSup:
-			fis = append(fis, &fsutil.MockFileInfo{
-				Path:  filepath.Base(file),
-				Isdir: true,
-			})
+		case fspath.PathSup:
+			fis = append(fis, fsmock.MockFileInfo(file, true, 0, nil))
 		}
 	}
 	return fis, nil

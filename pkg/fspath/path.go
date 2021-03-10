@@ -1,7 +1,8 @@
-package fsutil
+package fspath
 
 import (
 	"bytes"
+	"strings"
 )
 
 type pathRelation int8
@@ -16,6 +17,8 @@ const (
 )
 
 func SumPathRelation(self, target string) pathRelation {
+	self = strings.TrimPrefix(self, ".")
+	target = strings.TrimPrefix(target, ".")
 	selfPath := make([]byte, 0, len(self)+2)
 	targetPath := make([]byte, 0, len(target)+2)
 
@@ -56,4 +59,33 @@ func SumPathRelation(self, target string) pathRelation {
 	}
 
 	return PathIrrelevant
+}
+
+func SplitPrefixDir(path string) (prefix, last string) {
+	switch path {
+	case "", ".", "/", "./":
+		return "", ""
+	}
+
+	if path[0] == '/' {
+		path = path[1:]
+	}
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
+
+	if idx := strings.IndexByte(path, '/'); idx > 0 {
+		return path[:idx], path[idx+1:]
+	}
+	return path, ""
+}
+
+func Relative(path string) string {
+	if path == "" || path == "/" {
+		return "."
+	}
+	if path[0] == '/' {
+		return path[1:]
+	}
+	return path
 }
